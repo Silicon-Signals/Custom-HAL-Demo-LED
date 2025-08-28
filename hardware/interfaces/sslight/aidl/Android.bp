@@ -1,0 +1,19 @@
+package {
+    default_applicable_licenses: ["hardware_interfaces_license"],
+}
+
+aidl_interface {
+    name: "android.hardware.sslight",
+    vendor_available: true,
+    srcs: ["android/hardware/sslight/*.aidl"],
+    stability: "vintf",
+    owner: "silicon signals",
+    backend: {
+        cpp: {
+            enabled: false,
+        },
+        java: {
+            sdk_version: "module_current",
+        },
+    },
+}

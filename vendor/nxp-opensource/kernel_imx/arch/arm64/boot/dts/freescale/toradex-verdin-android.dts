@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2022 Toradex
+ */
+
+/dts-v1/;
+
+#include "imx8mp-verdin.dtsi"
+#include "imx8mp-verdin-nonwifi.dtsi"
+#include "imx8mp-verdin-dev.dtsi"
+
+/ {
+	model = "Toradex Verdin iMX8M Plus on Verdin Development Board";
+	compatible = "toradex,verdin-imx8mp-nonwifi-dev",
+		     "toradex,verdin-imx8mp-nonwifi",
+		     "toradex,verdin-imx8mp",
+		     "fsl,imx8mp";
+
+	chosen {
+		stdout-path = &uart3;
+	};
+
+    leds {
+        compatible = "gpio-leds";
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_led>;
+        status = "okay";
+
+        led-1 {
+            label = "sslight";
+            function-enumerator = <1>;
+            gpios = <&gpio5 6 GPIO_ACTIVE_HIGH>;
+            status = "okay";
+            };
+    };
+
+        sound {
+                compatible = "simple-audio-card";
+                model = "nau8822-audio";
+                simple-audio-card,bitclock-master = <&codec_dai>;
+                simple-audio-card,format = "i2s";
+                simple-audio-card,frame-master = <&codec_dai>;
+                simple-audio-card,mclk-fs = <256>;
+                simple-audio-card,name = "verdin-nau8822";
+                status = "okay";
+                simple-audio-card,routing =
+                        "Headphones", "LHP",
+                        "Headphones", "RHP",
+                        "Speaker", "LSPK",
+                        "Speaker", "RSPK",
+                        "Line Out", "AUXOUT1",
+                        "Line Out", "AUXOUT2",
+                        "LAUX", "Line In",
+                        "RAUX", "Line In",
+                        "LMICP", "Mic In",
+                        "RMICP", "Mic In";
+                simple-audio-card,widgets =
+                        "Headphones", "Headphones",
+                        "Line Out", "Line Out",
+                        "Speaker", "Speaker",
+                        "Microphone", "Mic In",
+                        "Line", "Line In";
+
+                codec_dai: simple-audio-card,codec {
+                        clocks = <&audio_blk_ctrl IMX8MP_CLK_AUDIO_BLK_CTRL_SAI1_MCLK1>;
+                        sound-dai = <&nau8822_1a>;
+                };
+
+                simple-audio-card,cpu {
+                        sound-dai = <&sai1>;
+                };
+        };
+
+};
+
+&pwm3 {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+        clock-frequency = <10000>;
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+/* Verdin I2C_1 */
+&i2c4 {
+        status = "okay";
+
+        /* Audio Codec */
+        nau8822_1a: audio-codec@1a {
+                compatible = "nuvoton,nau8822";
+                reg = <0x1a>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&pinctrl_sai1>;
+                #sound-dai-cells = <0>;
+        };
+};
+
+/* Verdin I2S_1 */
+&sai1 {
+        #sound-dai-cells = <0>;
+        assigned-clocks = <&clk IMX8MP_CLK_SAI1>;
+        assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+        assigned-clock-rates = <24576000>;
+        fsl,sai-mclk-direction-output;
+        status = "okay";
+};
+
+&sdma2 {
+        status = "okay";
+};
+
+&irqsteer_hdmi {
+	status = "okay";
+};
+
+&hdmi_blk_ctrl {
+	status = "okay";
+};
+
+&hdmi_pavi {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmiphy {
+	status = "okay";
+};
+
+&lcdif3 {
+	status = "okay";
+
+	thres-low  = <1 2>;             /* (FIFO * 1 / 2) */
+	thres-high = <3 4>;             /* (FIFO * 3 / 4) */
+};
+
+&uart2 {
+	/* console */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
+&gpu_3d {
+	status = "okay";
+};
+
+&gpu_2d {
+	status = "okay";
+};
+
+&mix_gpu_ml {
+	status = "okay";
+};
+
+#include "imx8mp-android.dtsi"

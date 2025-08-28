@@ -1,0 +1,9 @@
+android_app {
+    name: "LedControl",
+    privileged: true,
+    vendor: true,
+    manifest: "AndroidManifest.xml",
+    srcs: ["src/**/*.java"],
+    static_libs: ["androidx.appcompat_appcompat"],
+    sdk_version: "module_current",
+} 
