@@ -1,0 +1,60 @@
+From aef62c93a7d243e3d3002076a7f49ca4707a3be7 Mon Sep 17 00:00:00 2001
+From: Rutvij Trivedi <rutvij.trivedi@siliconsignals.io>
+Date: Thu, 21 Aug 2025 17:02:20 +0530
+Subject: [PATCH] Add service and application entry for Sslight
+
+
+diff --git a/imx8m/evk_8mp/compatibility_matrix.xml b/imx8m/evk_8mp/compatibility_matrix.xml
+index 4a50bd49..ea1092fa 100644
+--- a/imx8m/evk_8mp/compatibility_matrix.xml
++++ b/imx8m/evk_8mp/compatibility_matrix.xml
+@@ -43,4 +43,12 @@
+         <name>netutils-wrapper</name>
+         <version>1.0</version>
+     </hal>
++    <hal format="aidl" optional="true">
++        <name>android.hardware.sslight</name>
++        <version>1</version>
++        <interface>
++            <name>ISslight</name>
++            <instance>default</instance>
++        </interface>
++    </hal>
+ </compatibility-matrix>
+diff --git a/imx8m/evk_8mp/device_framework_matrix.xml b/imx8m/evk_8mp/device_framework_matrix.xml
+index 2ef0f9a9..2685a215 100644
+--- a/imx8m/evk_8mp/device_framework_matrix.xml
++++ b/imx8m/evk_8mp/device_framework_matrix.xml
+@@ -15,4 +15,12 @@
+             <instance>default</instance>
+         </interface>
+     </hal>
++    <hal format="aidl" optional="true">
++        <name>android.hardware.sslight</name>
++        <version>1</version>
++        <interface>
++            <name>ISslight</name>
++            <instance>default</instance>
++        </interface>
++    </hal>
+ </compatibility-matrix>
+diff --git a/imx8m/evk_8mp/evk_8mp.mk b/imx8m/evk_8mp/evk_8mp.mk
+index c751c3e2..d6ceabb3 100644
+--- a/imx8m/evk_8mp/evk_8mp.mk
++++ b/imx8m/evk_8mp/evk_8mp.mk
+@@ -189,6 +189,12 @@ endif
+ PRODUCT_PACKAGES += \
+     android.hardware.security.keymint-service-imx
+ 
++# Custom LED Hal
++PRODUCT_PACKAGES += \
++    LedControl \
++    android.hardware.sslight \
++    android.hardware.sslight-service
++
+ # Confirmation UI
+ ifeq ($(PRODUCT_IMX_TRUSTY),true)
+ PRODUCT_PACKAGES += \
+-- 
+2.34.1
+

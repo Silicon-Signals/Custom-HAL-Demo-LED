@@ -1,0 +1,272 @@
+From e857dbd836da8455e3536280d0f9d4f6b15caa53 Mon Sep 17 00:00:00 2001
+From: Rutvij Trivedi <rutvij.trivedi@siliconsignals.io>
+Date: Thu, 21 Aug 2025 17:10:41 +0530
+Subject: [PATCH] Add sslight hal for led control
+
+
+diff --git a/compatibility_matrices/compatibility_matrix.8.xml b/compatibility_matrices/compatibility_matrix.8.xml
+index 5ea075a377..b34ad25c10 100644
+--- a/compatibility_matrices/compatibility_matrix.8.xml
++++ b/compatibility_matrices/compatibility_matrix.8.xml
+@@ -729,4 +729,12 @@
+             <regex-instance>.*</regex-instance>
+         </interface>
+     </hal>
++    <hal format="aidl" optional="true">
++        <name>android.hardware.sslight</name>
++        <version>1</version>
++        <interface>
++            <name>ISslight</name>
++            <instance>default</instance>
++        </interface>
++    </hal>
+ </compatibility-matrix>
+diff --git a/sslight/aidl/Android.bp b/sslight/aidl/Android.bp
+new file mode 100644
+index 0000000000..a2345957d5
+--- /dev/null
++++ b/sslight/aidl/Android.bp
+@@ -0,0 +1,19 @@
++package {
++    default_applicable_licenses: ["hardware_interfaces_license"],
++}
++
++aidl_interface {
++    name: "android.hardware.sslight",
++    vendor_available: true,
++    srcs: ["android/hardware/sslight/*.aidl"],
++    stability: "vintf",
++    owner: "silicon signals",
++    backend: {
++        cpp: {
++            enabled: false,
++        },
++        java: {
++            sdk_version: "module_current",
++        },
++    },
++}
+diff --git a/sslight/aidl/aidl_api/android.hardware.sslight/current/android/hardware/sslight/ISslight.aidl b/sslight/aidl/aidl_api/android.hardware.sslight/current/android/hardware/sslight/ISslight.aidl
+new file mode 100644
+index 0000000000..60d2897dea
+--- /dev/null
++++ b/sslight/aidl/aidl_api/android.hardware.sslight/current/android/hardware/sslight/ISslight.aidl
+@@ -0,0 +1,23 @@
++///////////////////////////////////////////////////////////////////////////////
++// THIS FILE IS IMMUTABLE. DO NOT EDIT IN ANY CASE.                          //
++///////////////////////////////////////////////////////////////////////////////
++
++// This file is a snapshot of an AIDL file. Do not edit it manually. There are
++// two cases:
++// 1). this is a frozen version file - do not edit this in any case.
++// 2). this is a 'current' file. If you make a backwards compatible change to
++//     the interface (from the latest frozen version), the build system will
++//     prompt you to update this file with `m <name>-update-api`.
++//
++// You must not make a backward incompatible change to any AIDL file built
++// with the aidl_interface module type with versions property set. The module
++// type is used to build AIDL files in a way that they can be used across
++// independently updatable components of the system. If a device is shipped
++// with such a backward incompatible change, it has a high risk of breaking
++// later when a module using the interface is updated, e.g., Mainline modules.
++
++package android.hardware.sslight;
++@VintfStability
++interface ISslight {
++  int ledControl(in int state);
++}
+diff --git a/sslight/aidl/android/hardware/sslight/ISslight.aidl b/sslight/aidl/android/hardware/sslight/ISslight.aidl
+new file mode 100644
+index 0000000000..6046e5ed79
+--- /dev/null
++++ b/sslight/aidl/android/hardware/sslight/ISslight.aidl
+@@ -0,0 +1,6 @@
++package android.hardware.sslight;
++
++@VintfStability
++interface ISslight {
++  int ledControl(in int state);
++}
+diff --git a/sslight/aidl/default/Android.bp b/sslight/aidl/default/Android.bp
+new file mode 100644
+index 0000000000..87126079a2
+--- /dev/null
++++ b/sslight/aidl/default/Android.bp
+@@ -0,0 +1,26 @@
++cc_binary {
++    name: "android.hardware.sslight-service",
++    vendor: true,
++    relative_install_path: "hw",
++    init_rc: ["android.hardware.sslight-service.rc"],
++    vintf_fragments: ["android.hardware.sslight-service.xml"],
++    srcs: [
++        "Sslight.cpp",
++        "service.cpp",
++    ],
++
++    cflags: [
++        "-Wall",
++        "-Werror",
++    ],
++
++    shared_libs: [
++        "libbase",
++        "liblog",
++        "libhardware",
++        "libbinder_ndk",
++        "libbinder",
++        "libutils",
++        "android.hardware.sslight-V1-ndk",
++    ],
++}
+diff --git a/sslight/aidl/default/Sslight.cpp b/sslight/aidl/default/Sslight.cpp
+new file mode 100644
+index 0000000000..1e2a9c02f4
+--- /dev/null
++++ b/sslight/aidl/default/Sslight.cpp
+@@ -0,0 +1,49 @@
++#include <utils/Log.h>
++#include <iostream>
++#include <fstream>
++#include "Sslight.h"
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace sslight {
++
++#define TAG "SSLightHAL"
++
++// LED values as macros
++#define LED_HIGH_VALUE  "1"
++#define LED_LOW_VALUE "0"
++
++ndk::ScopedAStatus Sslight::ledControl(int32_t in_state, int32_t* _aidl_return) {
++    constexpr char LED_FILE_PATH[] = "/sys/class/leds/sslight/brightness";
++
++    int fd = open(LED_FILE_PATH, O_WRONLY);
++    if (fd < 0) {
++        ALOGE("%s: Failed to open LED node %s", TAG, LED_FILE_PATH);
++        return ndk::ScopedAStatus::fromServiceSpecificError(-1);
++    } else {
++        ALOGI("%s: LED node %s opened successfully", TAG, LED_FILE_PATH);
++    }
++
++    int ret = 0;
++    if (in_state > 0) {
++        ret = write(fd, LED_HIGH_VALUE, sizeof(LED_HIGH_VALUE) - 1); // Write "HIGH" (LED ON)
++    } else {
++        ret = write(fd, LED_LOW_VALUE, sizeof(LED_LOW_VALUE) - 1); // Write "LOW" (LED OFF)
++    }
++
++    close(fd);
++
++    if (ret < 0) {
++        ALOGE("%s: Write operation failed for LED node: %s", TAG, LED_FILE_PATH);
++        return ndk::ScopedAStatus::fromServiceSpecificError(-1);
++    }
++
++    *_aidl_return = true;
++    return ndk::ScopedAStatus::ok();
++}
++
++}  // namespace sslight
++}  // namespace hardware
++}  // namespace android
++}
+diff --git a/sslight/aidl/default/Sslight.h b/sslight/aidl/default/Sslight.h
+new file mode 100644
+index 0000000000..38831e368f
+--- /dev/null
++++ b/sslight/aidl/default/Sslight.h
+@@ -0,0 +1,18 @@
++#pragma once
++
++#include <aidl/android/hardware/sslight/BnSslight.h>
++
++namespace aidl {
++namespace android {
++namespace hardware {
++namespace sslight {
++
++class Sslight : public BnSslight {
++    public:
++        ndk::ScopedAStatus ledControl(int32_t in_state, int32_t* _aidl_return);
++};
++
++}  // namespace sslight
++}  // namespace hardware
++}  // namespace android
++}  // namespace aidl
+diff --git a/sslight/aidl/default/android.hardware.sslight-service.rc b/sslight/aidl/default/android.hardware.sslight-service.rc
+new file mode 100644
+index 0000000000..ca7135a201
+--- /dev/null
++++ b/sslight/aidl/default/android.hardware.sslight-service.rc
+@@ -0,0 +1,6 @@
++service android.hardware.sslight-service /vendor/bin/hw/android.hardware.sslight-service
++        interface aidl android.hardware.sslight.ISslight/default
++        class hal
++        user root
++        group root
++        seclabel u:r:su:s0
+diff --git a/sslight/aidl/default/android.hardware.sslight-service.xml b/sslight/aidl/default/android.hardware.sslight-service.xml
+new file mode 100644
+index 0000000000..140f3a578f
+--- /dev/null
++++ b/sslight/aidl/default/android.hardware.sslight-service.xml
+@@ -0,0 +1,7 @@
++<manifest version="1.0" type="device">
++    <hal format="aidl">
++        <name>android.hardware.sslight</name>
++        <version>1</version>
++        <fqname>ISslight/default</fqname>
++    </hal>
++</manifest>
+diff --git a/sslight/aidl/default/service.cpp b/sslight/aidl/default/service.cpp
+new file mode 100644
+index 0000000000..b8372c6a2a
+--- /dev/null
++++ b/sslight/aidl/default/service.cpp
+@@ -0,0 +1,38 @@
++#define LOG_TAG "Sslight_HalService"
++
++#include <android-base/logging.h>
++#include <android/binder_manager.h>
++#include <android/binder_process.h>
++#include <binder/ProcessState.h>
++#include <binder/IServiceManager.h>
++#include "Sslight.h"
++
++using aidl::android::hardware::sslight::Sslight;
++using std::string_literals::operator""s;
++
++int main() {
++
++    // Set up binder thread pool
++    ABinderProcess_setThreadPoolMaxThreadCount(0);
++    ABinderProcess_startThreadPool();
++
++    // Create SSLight service instance
++    std::shared_ptr<Sslight> sslight = ndk::SharedRefBase::make<Sslight>();
++    const std::string name = Sslight::descriptor + "/default"s;
++
++    // Register service with binder
++    if (sslight != nullptr) {
++        if(AServiceManager_addService(sslight->asBinder().get(), name.c_str()) != STATUS_OK) {
++            ALOGE("%s: Service registration failed", LOG_TAG);
++            return EXIT_FAILURE;
++        }
++    } else {
++        ALOGE("%s: ISslight instance not available", LOG_TAG);
++        return EXIT_FAILURE;
++    }
++
++    ALOGE("%s: Service registered successfully, joining binder service pool", LOG_TAG);
++    ABinderProcess_joinThreadPool();
++
++    return EXIT_FAILURE;  // should not reached
++}
+-- 
+2.34.1
+

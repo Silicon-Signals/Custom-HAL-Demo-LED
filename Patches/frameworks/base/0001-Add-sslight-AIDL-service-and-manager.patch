@@ -1,0 +1,326 @@
+From 411ab4fe492e8efef5c577599f2cf5c5be5bb82c Mon Sep 17 00:00:00 2001
+From: Rutvij Trivedi <rutvij.trivedi@siliconsignals.io>
+Date: Thu, 21 Aug 2025 17:12:14 +0530
+Subject: [PATCH] Add sslight AIDL service and manager
+
+
+diff --git a/core/api/current.txt b/core/api/current.txt
+index 288ab479c0fb..95068f0bae75 100644
+--- a/core/api/current.txt
++++ b/core/api/current.txt
+@@ -10432,6 +10432,7 @@ package android.content {
+     field public static final String SEARCH_SERVICE = "search";
+     field public static final String SENSOR_SERVICE = "sensor";
+     field public static final String SHORTCUT_SERVICE = "shortcut";
++    field public static final String SSLIGHT_SERVICE = "sslight";
+     field public static final String STATUS_BAR_SERVICE = "statusbar";
+     field public static final String STORAGE_SERVICE = "storage";
+     field public static final String STORAGE_STATS_SERVICE = "storagestats";
+@@ -33720,6 +33721,11 @@ package android.os {
+     field @NonNull public static final android.os.Parcelable.Creator<android.os.SharedMemory> CREATOR;
+   }
+ 
++  public class SslightManager {
++    method public int ledControl(int);
++    field public static final int LED_CONTROL_FAILED = -1; // 0xffffffff
++  }
++
+   public class StatFs {
+     ctor public StatFs(String);
+     method @Deprecated public int getAvailableBlocks();
+diff --git a/core/java/android/app/SystemServiceRegistry.java b/core/java/android/app/SystemServiceRegistry.java
+index 565226d0333e..9b1b0b3f128b 100644
+--- a/core/java/android/app/SystemServiceRegistry.java
++++ b/core/java/android/app/SystemServiceRegistry.java
+@@ -256,6 +256,9 @@ import com.android.internal.util.Preconditions;
+ import java.util.Map;
+ import java.util.Objects;
+ 
++import android.os.ISslightService;
++import android.os.SslightManager;
++
+ /**
+  * Manages all of the system services that can be returned by {@link Context#getSystemService}.
+  * Used by {@link ContextImpl}.
+@@ -285,6 +288,14 @@ public final class SystemServiceRegistry {
+     private SystemServiceRegistry() { }
+ 
+     static {
++        //SSLIGHT
++        registerService(Context.SSLIGHT_SERVICE, SslightManager.class,
++                new CachedServiceFetcher<SslightManager>() {
++            @Override
++            public SslightManager createService(ContextImpl ctx) {
++                return new SslightManager(ctx);
++            }});
++
+         //CHECKSTYLE:OFF IndentationCheck
+         registerService(Context.ACCESSIBILITY_SERVICE, AccessibilityManager.class,
+                 new CachedServiceFetcher<AccessibilityManager>() {
+diff --git a/core/java/android/content/Context.java b/core/java/android/content/Context.java
+index 2a6d84b1acc6..61ba7c676735 100644
+--- a/core/java/android/content/Context.java
++++ b/core/java/android/content/Context.java
+@@ -4428,6 +4428,11 @@ public abstract class Context {
+      */
+     public abstract @Nullable String getSystemServiceName(@NonNull Class<?> serviceClass);
+ 
++    /**
++	 * SSlight
++     */
++    public static final String SSLIGHT_SERVICE = "sslight";
++
+     /**
+      * Use with {@link #getSystemService(String)} to retrieve a
+      * {@link android.os.PowerManager} for controlling power management,
+diff --git a/core/java/android/os/ISslightService.aidl b/core/java/android/os/ISslightService.aidl
+new file mode 100644
+index 000000000000..9eb5c590f441
+--- /dev/null
++++ b/core/java/android/os/ISslightService.aidl
+@@ -0,0 +1,7 @@
++package android.os;
++
++/** {@hide} */
++
++interface ISslightService {
++	int ledControl(int state);
++}
+diff --git a/core/java/android/os/SslightManager.java b/core/java/android/os/SslightManager.java
+new file mode 100644
+index 000000000000..262459e8c697
+--- /dev/null
++++ b/core/java/android/os/SslightManager.java
+@@ -0,0 +1,57 @@
++package android.os;
++
++import android.annotation.Nullable;
++import android.annotation.SystemApi;
++import android.annotation.SystemService;
++import android.app.ActivityThread;
++import android.content.Context;
++import android.os.Handler;
++import android.os.IBinder;
++import android.os.ISslightService;
++import android.os.Message;
++import android.os.RemoteException;
++import android.os.ServiceManager;
++import android.util.Log;
++
++import java.util.HashSet;
++import java.util.Set;
++
++@SystemService(Context.SSLIGHT_SERVICE)
++public class SslightManager {
++
++    private static final String TAG = "SslightManager";
++
++    /** Error code returned when LED control operation fails */
++    public static final int LED_CONTROL_FAILED = -1;
++
++    private final Context mContext;
++    private ISslightService mSslightService = null;
++
++    /** {@hide} **/
++    public SslightManager(Context context) {
++        this.mContext = context;
++    }
++
++    private ISslightService getService() {
++        if (mSslightService != null) {
++            return mSslightService;
++        }
++        try {
++            IBinder binder = ServiceManager.getService(Context.SSLIGHT_SERVICE);
++            mSslightService = ISslightService.Stub.asInterface(binder);
++            Log.d(TAG, "Successfully connected to SSLight service");
++        } catch (Exception e) {
++            Log.e(TAG, "Failed to connect to SSLight service", e);
++        }
++        return mSslightService;
++    }
++
++    public int ledControl(int state) {
++        try {
++            return getService().ledControl(state);
++        } catch (Exception e) {
++            Log.e(TAG, "LED control operation failed (state=" + state + ")", e);
++        }
++        return LED_CONTROL_FAILED;
++    }
++}
+diff --git a/services/core/java/com/android/server/SslightService.java b/services/core/java/com/android/server/SslightService.java
+new file mode 100644
+index 000000000000..c7c16aa88416
+--- /dev/null
++++ b/services/core/java/com/android/server/SslightService.java
+@@ -0,0 +1,24 @@
++package com.android.server;
++
++import android.content.Context;
++import android.os.ISslightService;
++import android.os.RemoteException;
++import android.util.Log;
++
++public class SslightService extends ISslightService.Stub {
++
++    private static final String TAG = "SslightService";
++
++    public SslightService(Context context) {
++        // Context can be stored if needed later
++    }
++
++    /** Calls native code to perform Sslight hardware service control */
++    @Override
++    public int ledControl(int state) throws RemoteException {
++        Log.i(TAG, "Processing LED control request with state=" + state);
++        return native_ledCtrl(state);
++    }
++
++    private static native int native_ledCtrl(int state);
++}
+diff --git a/services/core/jni/Android.bp b/services/core/jni/Android.bp
+index 77db96001e0c..bcfed9806eff 100644
+--- a/services/core/jni/Android.bp
++++ b/services/core/jni/Android.bp
+@@ -47,6 +47,7 @@ cc_library_static {
+         "com_android_server_HardwarePropertiesManagerService.cpp",
+         "com_android_server_input_InputManagerService.cpp",
+         "com_android_server_lights_LightsService.cpp",
++        "com_android_server_SslightService.cpp",
+         "com_android_server_location_GnssLocationProvider.cpp",
+         "com_android_server_locksettings_SyntheticPasswordManager.cpp",
+         "com_android_server_power_PowerManagerService.cpp",
+@@ -181,6 +182,7 @@ cc_defaults {
+         "android.hardware.power-V4-cpp",
+         "android.hardware.power.stats@1.0",
+         "android.hardware.power.stats-V1-ndk",
++        "android.hardware.sslight-V1-ndk",
+         "android.hardware.thermal@1.0",
+         "android.hardware.thermal-V1-ndk",
+         "android.hardware.tv.input@1.0",
+diff --git a/services/core/jni/com_android_server_SslightService.cpp b/services/core/jni/com_android_server_SslightService.cpp
+new file mode 100644
+index 000000000000..b389f593e96d
+--- /dev/null
++++ b/services/core/jni/com_android_server_SslightService.cpp
+@@ -0,0 +1,58 @@
++#define LOG_TAG "LedService"
++
++#include <aidl/android/hardware/sslight/ISslight.h>
++#include <android/binder_interface_utils.h>
++#include <android/binder_manager.h>
++#include <android-base/chrono_utils.h>
++#include <android/log.h>
++#include <binder/IBinder.h>
++#include <binder/IServiceManager.h>
++#include <binder/ProcessState.h>
++#include <jni.h>
++#include "android_runtime/AndroidRuntime.h"
++#include <nativehelper/JNIHelp.h>
++#include <stdio.h>
++#include <utils/Log.h>
++#include <utils/misc.h>
++
++namespace android {
++
++using aidl::android::hardware::sslight::ISslight;
++using namespace std;
++
++// Shared pointer for HAL interface
++static std::shared_ptr<ISslight> ssHal = nullptr;
++
++static int native_ledCtrl(JNIEnv *env, jobject /*obj*/, jint state) {
++    int status = 0;
++
++    const std::string sslightInstance = std::string() + ISslight::descriptor + "/default";
++
++    // Get HAL service instance
++    std::shared_ptr<ISslight> ssHal = ISslight::fromBinder(
++        ndk::SpAIBinder(AServiceManager_waitForService(sslightInstance.c_str()))
++    );
++
++    if (ssHal != nullptr) {
++        ssHal->ledControl(state, &status);
++        __android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG,
++                            "LED control state sent to SSLight HAL Service (state=%d, status=%d)", state, status);
++    } else {
++        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
++                            "Failed to acquire SSLight HAL Service instance");
++    }
++
++    return status;
++}
++
++// JNI method registration
++static const JNINativeMethod methods[] = {
++    {"native_ledCtrl", "(I)I", (void*)native_ledCtrl},
++};
++
++int register_android_server_SslightService(JNIEnv *env) {
++    return jniRegisterNativeMethods(env, "com/android/server/SslightService",
++                                    methods, NELEM(methods));
++}
++
++} // namespace android
+diff --git a/services/core/jni/onload.cpp b/services/core/jni/onload.cpp
+index 63c3b4d1834c..c7a3fb2e1e13 100644
+--- a/services/core/jni/onload.cpp
++++ b/services/core/jni/onload.cpp
+@@ -28,6 +28,7 @@ int register_android_server_BatteryStatsService(JNIEnv* env);
+ int register_android_server_ConsumerIrService(JNIEnv *env);
+ int register_android_server_InputManager(JNIEnv* env);
+ int register_android_server_LightsService(JNIEnv* env);
++int register_android_server_SslightService(JNIEnv* env);
+ int register_android_server_PowerManagerService(JNIEnv* env);
+ int register_android_server_PowerStatsService(JNIEnv* env);
+ int register_android_server_HintManagerService(JNIEnv* env);
+@@ -98,6 +99,7 @@ extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
+     register_android_server_vibrator_VibratorController(vm, env);
+     register_android_server_vibrator_VibratorManagerService(vm, env);
+     register_android_server_SystemServer(env);
++    register_android_server_SslightService(env);
+     register_android_server_location_GnssLocationProvider(env);
+     register_android_server_connectivity_Vpn(env);
+     register_android_server_devicepolicy_CryptoTestHelper(env);
+diff --git a/services/java/com/android/server/SystemServer.java b/services/java/com/android/server/SystemServer.java
+index c15f595525b4..daac292c1710 100644
+--- a/services/java/com/android/server/SystemServer.java
++++ b/services/java/com/android/server/SystemServer.java
+@@ -244,6 +244,9 @@ import java.util.TreeSet;
+ import java.util.concurrent.CountDownLatch;
+ import java.util.concurrent.Future;
+ 
++import android.os.ISslightService;
++import android.os.SslightManager;
++
+ /**
+  * Entry point to {@code system_server}.
+  */
+@@ -1123,6 +1126,7 @@ public final class SystemServer implements Dumpable {
+         mSystemServiceManager.startService(DeviceIdentifiersPolicyService.class);
+         t.traceEnd();
+ 
++
+         // Starts a service for reading runtime flag overrides, and keeping processes
+         // in sync with one another.
+         t.traceBegin("StartFeatureFlagsService");
+@@ -2294,6 +2298,15 @@ public final class SystemServer implements Dumpable {
+                 t.traceEnd();
+             }
+ 
++            t.traceBegin("SslightService");
++                try {
++                    Slog.i(TAG, "SsLight Service !");
++                    ServiceManager.addService("sslight", new SslightService(context));
++                } catch (Throwable e) {
++                    reportWtf("starting Sslight service", e);
++                }
++            t.traceEnd();
++
+             t.traceBegin("StartHardwarePropertiesManagerService");
+             try {
+                 hardwarePropertiesService = new HardwarePropertiesManagerService(context);
+-- 
+2.34.1
+

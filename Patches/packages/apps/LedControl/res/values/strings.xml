@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">LED Control App</string>
+    <string name="button_on">LED ON</string>
+    <string name="button_off">LED OFF</string>
+</resources>

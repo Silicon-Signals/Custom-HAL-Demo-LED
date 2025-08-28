@@ -1,0 +1,50 @@
+From daa6e4a6c32fb7180403370cb433a0adec3d0593 Mon Sep 17 00:00:00 2001
+From: Rutvij Trivedi <rutvij.trivedi@siliconsignals.io>
+Date: Thu, 21 Aug 2025 17:09:05 +0530
+Subject: [PATCH] arm64: dts: imx8mp-verdin: add gpio-led support for sslight
+
+
+diff --git a/arch/arm64/boot/dts/freescale/imx8mp-verdin.dtsi b/arch/arm64/boot/dts/freescale/imx8mp-verdin.dtsi
+index 27026bcbe9c1..918a75dc42f6 100644
+--- a/arch/arm64/boot/dts/freescale/imx8mp-verdin.dtsi
++++ b/arch/arm64/boot/dts/freescale/imx8mp-verdin.dtsi
+@@ -882,6 +882,11 @@ pinctrl_ctrl_sleep_moci: ctrlsleepmocigrp {
+ 			<MX8MP_IOMUXC_SAI3_RXC__GPIO4_IO29		0x1c4>;	/* SODIMM 256 */
+ 	};
+ 
++	pinctrl_led: led1grp {
++		fsl,pins =
++			<MX8MP_IOMUXC_ECSPI1_SCLK__GPIO5_IO06		0x4>;	/* SODIMM 196 */
++	};
++
+ 	pinctrl_ecspi1: ecspi1grp {
+ 		fsl,pins =
+ 			<MX8MP_IOMUXC_ECSPI1_MISO__ECSPI1_MISO		0x1c4>,	/* SODIMM 198 */
+diff --git a/arch/arm64/boot/dts/freescale/toradex-verdin-android.dts b/arch/arm64/boot/dts/freescale/toradex-verdin-android.dts
+index f8bda8f66f45..1395d4de6f38 100644
+--- a/arch/arm64/boot/dts/freescale/toradex-verdin-android.dts
++++ b/arch/arm64/boot/dts/freescale/toradex-verdin-android.dts
+@@ -20,6 +20,20 @@ chosen {
+ 		stdout-path = &uart3;
+ 	};
+ 
++    leds {
++        compatible = "gpio-leds";
++        pinctrl-names = "default";
++        pinctrl-0 = <&pinctrl_led>;
++        status = "okay";
++
++        led-1 {
++            label = "sslight";
++            function-enumerator = <1>;
++            gpios = <&gpio5 6 GPIO_ACTIVE_HIGH>;
++            status = "okay";
++            };
++    };
++
+         sound {
+                 compatible = "simple-audio-card";
+                 model = "nau8822-audio";
+-- 
+2.34.1
+
