@@ -11,6 +11,7 @@ It demonstrates how to create, integrate, and test a HAL in **Android 14 (Upside
  
 ## Android Version
 - Tested on **Android 14**
+- Validated on **Toradex Verdin i.MX8M Plus (imx8mp) board**
  
 ## Usage
 1. Clone this repo: https://github.com/Silicon-Signals/Custom-HAL-Demo-LED.git
