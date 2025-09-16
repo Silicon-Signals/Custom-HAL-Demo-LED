@@ -1,32 +1,49 @@
-<?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingLeft="16dp"
-    android:paddingTop="16dp"
-    android:paddingRight="16dp"
-    android:paddingBottom="16dp"
+    android:padding="24dp"
     tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/buttonOn"
+    <!-- Buttons exactly centered -->
+    <LinearLayout
+        android:id="@+id/buttonContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/button_on"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="32dp"
-        android:onClick="turnOnLED"/>
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_centerInParent="true">
 
-    <Button
-        android:id="@+id/buttonOff"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/button_off"
-        android:layout_centerHorizontal="true"
-        android:layout_below="@id/buttonOn"
-        android:layout_marginTop="16dp"
-        android:onClick="turnOffLED"/>
+        <Button
+            android:id="@+id/buttonOn"
+            android:layout_width="250dp"
+            android:layout_height="80dp"
+            android:text="@string/button_on"
+            android:textSize="36sp"
+            android:backgroundTint="@android:color/holo_green_light"
+            android:layout_marginBottom="24dp"
+            android:onClick="turnOnLED" />
+
+        <Button
+            android:id="@+id/buttonOff"
+            android:layout_width="250dp"
+            android:layout_height="80dp"
+            android:text="@string/button_off"
+            android:textSize="36sp"
+            android:backgroundTint="@android:color/holo_red_light"
+            android:onClick="turnOffLED" />
+
+    </LinearLayout>
+
+    <!-- Logo fixed to top-right corner -->
+    <ImageView
+        android:id="@+id/logoImage"
+        android:layout_width="350dp"
+        android:layout_height="130dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:src="@drawable/background_logo_png" />
 
 </RelativeLayout>
